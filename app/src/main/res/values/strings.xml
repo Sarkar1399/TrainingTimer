@@ -11,4 +11,6 @@
     <string name="num9">9</string>
     <string name="num0">0</string>
     <string name="todo">TODO</string>
+    <string name="notification_title">My notification</string>
+    <string name="notification_content_text">Much longer text that cannot fit one line…</string>
 </resources>

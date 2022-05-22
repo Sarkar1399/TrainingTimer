@@ -5,17 +5,17 @@ import android.content.Context
 import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContract
 
-class TimerActivityContract : ActivityResultContract<Time, Time>() {
-    override fun createIntent(context: Context, input: Time): Intent {
-        return Intent(context, SetTimeActivity::class.java).putExtra("time", input)
+class TimerActivityContract : ActivityResultContract<Long, Long>() {
+    override fun createIntent(context: Context, input: Long): Intent {
+        return Intent(context, SetTimeActivity::class.java).putExtra(Constants.SET_TIME, input)
     }
 
-    override fun parseResult(resultCode: Int, intent: Intent?): Time = when (resultCode) {
+    override fun parseResult(resultCode: Int, intent: Intent?): Long = when (resultCode) {
         Activity.RESULT_OK -> {
-            intent?.getSerializableExtra("time") as Time
+            intent?.getLongExtra(Constants.SET_TIME, 0) as Long
         }
         else -> {
-            Time()
+            0L
         }
     }
 }

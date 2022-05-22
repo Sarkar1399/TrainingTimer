@@ -1,134 +1,145 @@
 package com.sarkardeveloper.trainingtimer
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.os.*
-import androidx.appcompat.app.AppCompatActivity
+import android.content.SharedPreferences
+import android.media.AudioManager
+import android.os.Bundle
+import android.os.CountDownTimer
 import android.util.Log
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import com.sarkardeveloper.trainingtimer.Constants.CHANNEL_ID
+import androidx.appcompat.app.AppCompatActivity
 import com.sarkardeveloper.trainingtimer.databinding.ActivityMainBinding
-import java.lang.StringBuilder
+
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var timer: CountDownTimer
     private var timerLengthSeconds: Long = 0
-    private var secondsRemaining: Long = 0
+    private var secondsRemainingTime: Long = 0
     private var isStart: Boolean = false
+    private lateinit var sharedPreferences: SharedPreferences
+
+    private var mAudioManager: AudioManager? = null
+    private var mRemoteControlResponder: ComponentName? = null
+    private val actionMediaButtonListener: ActionMediaButtonListener =
+        object : ActionMediaButtonListener {
+            override fun startListener(str: String) {
+                startTimer(timerLengthSeconds)
+                Log.d("TAG_TEST", "startListener: $str")
+            }
+        }
+    private val remoteControlReceiver = RemoteControlReceiver()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        sharedPreferences = getSharedPreferences(Constants.SHARED_PREFERENCES, Context.MODE_PRIVATE)
+
+        remoteControlReceiver.setMediaButtonListener(actionMediaButtonListener)
+        mAudioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+        mRemoteControlResponder = ComponentName(
+            packageName,
+            remoteControlReceiver::class.java.name
+        )
+
 
         binding.imgCart.setOnClickListener {
-            activityLauncher.launch(Time())
+            if (secondsRemainingTime != 0L) {
+                timer.cancel()
+                secondsRemainingTime = 0
+            }
+            activityLauncher.launch(
+                sharedPreferences.getLong(Constants.TIME_LENGTH_SECONDS, 0)
+            )
         }
         binding.tvTimer.setOnClickListener {
             if (!isStart) {
                 isStart = true
-                startTimer()
+                if (secondsRemainingTime != 0L) {
+                    binding.progressBar.max = timerLengthSeconds.toInt()
+                    binding.progressBar.progress = secondsRemainingTime.toInt()
+                    startTimer(timerLengthSeconds - secondsRemainingTime)
+                } else {
+                    binding.progressBar.max = timerLengthSeconds.toInt()
+                    binding.progressBar.progress = secondsRemainingTime.toInt()
+                    startTimer(timerLengthSeconds)
+                }
             } else {
                 isStart = false
                 onPauseTimer()
             }
         }
-        binding.progressBar.max = 0
+        timerLengthSeconds =
+            sharedPreferences.getLong(Constants.TIME_LENGTH_SECONDS, 0)
+        binding.tvTimer.text = configureTime(timerLengthSeconds)
+        binding.progressBar.max = timerLengthSeconds.toInt()
         binding.progressBar.progress = 0
-
     }
 
     private val activityLauncher = registerForActivityResult(TimerActivityContract()) { result ->
-        val sb = StringBuilder("")
-        sb.append("${if (result.hours.toInt() > 0) "${result.hours} : " else ""}")
-        sb.append("${if (result.minute.toInt() > 0) "${result.minute} : " else "0 : "}")
-        sb.append("${if (result.seconds.toInt() > 0) "${if (result.seconds.toString().length == 2) "${result.seconds}" else "0${result.seconds}"}" else ""}")
-        binding.tvTimer.text = sb.toString()
-
-        timerLengthSeconds =
-            (result.hours.toInt() * 3600 + result.minute.toInt() * 60 + result.seconds.toInt()).toLong()
-        binding.progressBar.max =
-            result.hours.toInt() * 3600 + result.minute.toInt() * 60 + result.seconds.toInt()
+        binding.tvTimer.text = configureTime(result)
+        timerLengthSeconds = result
+        binding.progressBar.max = timerLengthSeconds.toInt()
+        binding.progressBar.progress = 0
     }
 
-    private fun startTimer() {
-        timer = object : CountDownTimer(timerLengthSeconds * 1000, 1000) {
+    fun startTimer(secondsRemainingTime: Long) {
+        Log.d("TAG_TEST", "startTimer: $secondsRemainingTime")
+        timer = object : CountDownTimer(secondsRemainingTime * 1000, 1000) {
             override fun onFinish() = onTimerFinished()
 
             override fun onTick(millisUntilFinished: Long) {
-                secondsRemaining = millisUntilFinished / 1000
-                Log.d("TAG_TEST", "onTick: $secondsRemaining")
-                updateCountdownUI()
+                Log.d("TAG_TEST", "onTick: $millisUntilFinished")
+                updateCountdownUI(millisUntilFinished / 1000)
             }
         }.start()
     }
 
     private fun onPauseTimer() {
+        isStart = false
+        sharedPreferences.edit()
+            .putLong(Constants.SECONDS_REMAINING_TIME, secondsRemainingTime)
+            .apply()
         timer.cancel()
     }
 
     private fun onTimerFinished() {
-        updateCountdownUI()
-        startNotification()
+        isStart = false
+        secondsRemainingTime = 0
+        NotificationUtils.startNotification()
     }
 
-    private fun updateCountdownUI() {
-        val minutesUntilFinished = secondsRemaining / 60
-        val secondsInMinuteUntilFinished = secondsRemaining - minutesUntilFinished * 60
-        val secondsStr = secondsInMinuteUntilFinished.toString()
-        binding.tvTimer.text =
-            "$minutesUntilFinished:${if (secondsStr.length == 2) secondsStr else "0$secondsStr"}"
+    private fun configureTime(timeLengthSeconds: Long): String {
+        val sb = StringBuilder("")
+        val hours = timeLengthSeconds / 3600
+        val minute = (timeLengthSeconds - (hours * 3600)) / 60
+        val seconds = timeLengthSeconds - ((hours * 3600) + (minute * 60))
+        sb.append("${if (hours > 0) "$hours : " else ""}")
+        sb.append("${if (minute > 0) "$minute : " else "0 : "}")
+        sb.append("${if (seconds > 0) "${if (seconds.toString().length == 2) "$seconds" else "0${seconds}"}" else "00"}")
+        return sb.toString()
+    }
+
+    private fun updateCountdownUI(secondsRemaining: Long = 0) {
+        binding.tvTimer.text = configureTime(secondsRemaining)
+        secondsRemainingTime = timerLengthSeconds - secondsRemaining
         binding.progressBar.progress = (timerLengthSeconds - secondsRemaining).toInt()
     }
 
-    private fun startNotification() {
-        createNotificationChannel()
-
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        val pendingIntent: PendingIntent =
-            PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
-
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_cart)
-            .setContentTitle("My notification")
-            .setContentText("Much longer text that cannot fit one line...")
-            .setStyle(
-                NotificationCompat.BigTextStyle()
-                    .bigText("Much longer text that cannot fit one line...")
-            ).setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT).setAutoCancel(true)
-
-        with(NotificationManagerCompat.from(this)) {
-            notify(1, builder.build())
-        }
-        if (Build.VERSION.SDK_INT >= 26) {
-            (getSystemService(VIBRATOR_SERVICE) as Vibrator).vibrate(VibrationEffect.createOneShot(5000, VibrationEffect.DEFAULT_AMPLITUDE))
-        } else {
-            (getSystemService(VIBRATOR_SERVICE) as Vibrator).vibrate(5000)
-        }
+    override fun onResume() {
+        super.onResume()
+        mAudioManager?.registerMediaButtonEventReceiver(
+            mRemoteControlResponder
+        )
     }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = getString(R.string.app_name)
-            val descriptionText = getString(R.string.app_name)
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
-                description = descriptionText
-            }
-            // Register the channel with the system
-            val notificationManager: NotificationManager =
-                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
+    override fun onDestroy() {
+        super.onDestroy()
+        mAudioManager?.unregisterMediaButtonEventReceiver(
+            mRemoteControlResponder
+        )
     }
 
 }
