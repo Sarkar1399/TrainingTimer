@@ -22,22 +22,22 @@ class MainActivity : AppCompatActivity() {
 
     private var mAudioManager: AudioManager? = null
     private var mRemoteControlResponder: ComponentName? = null
-    private val actionMediaButtonListener: ActionMediaButtonListener =
-        object : ActionMediaButtonListener {
-            override fun startListener(str: String) {
-                startTimer(timerLengthSeconds)
-                Log.d("TAG_TEST", "startListener: $str")
-            }
-        }
     private val remoteControlReceiver = RemoteControlReceiver()
+
+    companion object {
+        var ins: MainActivity? = null
+        fun getInstance(): MainActivity? {
+            return ins
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        ins = this
         sharedPreferences = getSharedPreferences(Constants.SHARED_PREFERENCES, Context.MODE_PRIVATE)
 
-        remoteControlReceiver.setMediaButtonListener(actionMediaButtonListener)
         mAudioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         mRemoteControlResponder = ComponentName(
             packageName,
@@ -78,6 +78,12 @@ class MainActivity : AppCompatActivity() {
         binding.progressBar.progress = 0
     }
 
+    fun updateTheTextView() {
+        this@MainActivity.runOnUiThread {
+            startTimer(timerLengthSeconds)
+        }
+    }
+
     private val activityLauncher = registerForActivityResult(TimerActivityContract()) { result ->
         binding.tvTimer.text = configureTime(result)
         timerLengthSeconds = result
@@ -85,7 +91,7 @@ class MainActivity : AppCompatActivity() {
         binding.progressBar.progress = 0
     }
 
-    fun startTimer(secondsRemainingTime: Long) {
+    private fun startTimer(secondsRemainingTime: Long) {
         Log.d("TAG_TEST", "startTimer: $secondsRemainingTime")
         timer = object : CountDownTimer(secondsRemainingTime * 1000, 1000) {
             override fun onFinish() = onTimerFinished()

@@ -9,20 +9,14 @@ import android.view.KeyEvent
 
 class RemoteControlReceiver : BroadcastReceiver() {
 
-    private var actionMediaButtonListener: ActionMediaButtonListener? = null
-    fun setMediaButtonListener(listener: ActionMediaButtonListener) {
-        this.actionMediaButtonListener = listener
-        Log.d("TAG_TEST", "setMediaButtonListener: $listener")
-    }
-
     override fun onReceive(context: Context?, intent: Intent?) {
         if (Intent.ACTION_MEDIA_BUTTON == intent?.action) {
             if (!TrainingTimerApp.isActionMediaButton) {
-                val mediaPlayer: MediaPlayer =
-                    MediaPlayer.create(TrainingTimerApp.appContext, R.raw.hello_hi)
-                mediaPlayer.start()
-                actionMediaButtonListener?.startListener("onReceiver")
-                Log.d("TAG_TEST", "onReceive: tetete")
+                try {
+                    MainActivity.getInstance()?.updateTheTextView()
+                } catch (e: Exception) {
+                    Log.d("TAG_TEST", "onReceive: ${e.message}")
+                }
                 TrainingTimerApp.isActionMediaButton = true
             } else {
                 TrainingTimerApp.isActionMediaButton = false

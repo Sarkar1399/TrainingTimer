@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.MediaPlayer
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -32,6 +33,10 @@ object NotificationUtils {
                     .bigText(TrainingTimerApp.getString(R.string.notification_content_text))
             ).setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT).setAutoCancel(true)
+
+        val mediaPlayer: MediaPlayer =
+            MediaPlayer.create(TrainingTimerApp.appContext, R.raw.hello_hi)
+        mediaPlayer.start()
 
         with(NotificationManagerCompat.from(TrainingTimerApp.appContext)) {
             notify(1, builder.build())
