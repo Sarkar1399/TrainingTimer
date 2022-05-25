@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#22191A"
     tools:context=".SetTimeActivity">
 
     <LinearLayout
@@ -338,6 +339,7 @@
                     android:layout_width="64dp"
                     android:layout_height="64dp"
                     android:background="@drawable/bg_num"
+                    android:backgroundTint="#FDBA6F"
                     android:contentDescription="@string/todo"
                     android:padding="16dp"
                     app:srcCompat="@drawable/ic_done" />
@@ -377,6 +379,7 @@
                     android:layout_width="64dp"
                     android:layout_height="64dp"
                     android:background="@drawable/bg_num"
+                    android:backgroundTint="#EBBAC0"
                     android:contentDescription="@string/todo"
                     android:padding="20dp"
                     app:srcCompat="@drawable/ic_backspace" />
